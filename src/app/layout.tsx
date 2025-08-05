@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 const outfit = Outfit({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'IndigoChat',
+  title: 'GreyAI',
   description: 'A minimalist conversational AI assistant.',
 };
 

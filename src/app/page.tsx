@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Plus, Bot, User, BrainCircuit, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle, Sparkles } from 'lucide-react';
+import { Send, Plus, Bot, User, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle, Sparkles } from 'lucide-react';
 import { getAiResponse } from './actions';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -31,6 +31,25 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
+
+const GreyAiIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className="h-8 w-8 text-primary"
+  >
+    <path
+      fillRule="evenodd"
+      d="M4.5 9.75a6 6 0 0111.571-2.012A8.25 8.25 0 0122.5 9.75V19.5a.75.75 0 01-.75.75h-3.375a.75.75 0 01-.75-.75V15.75a.75.75 0 00-.75-.75h-4.5a.75.75 0 00-.75.75v3.75a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75V9.75z"
+      clipRule="evenodd"
+    />
+    <path
+      d="M1.5 9.75a.75.75 0 01.75-.75h1.5a.75.75 0 01.75.75v9.75a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75V9.75z"
+    />
+  </svg>
+);
+
 
 type Message = {
   role: 'user' | 'assistant';
@@ -287,8 +306,8 @@ export default function Home() {
      <div className="flex flex-col h-full bg-card border-r overflow-hidden">
         <div className="flex items-center justify-between gap-2 p-4 border-b shrink-0">
             <div className="flex items-center gap-2">
-              <BrainCircuit className="text-primary h-8 w-8" />
-              <h1 className="text-2xl font-semibold tracking-tighter">IndigoChat</h1>
+              <GreyAiIcon />
+              <h1 className="text-2xl font-semibold tracking-tighter">GreyAI</h1>
             </div>
         </div>
         <div className="p-2 border-b shrink-0">
@@ -373,7 +392,7 @@ export default function Home() {
                         {messages.length === 0 && !isLoading && (
                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full pt-20">
                                 <Sparkles size={64} className="mb-4 text-primary opacity-50" />
-                                <p className="text-2xl font-medium">Welcome to IndigoChat</p>
+                                <p className="text-2xl font-medium">Welcome to GreyAI</p>
                                 <p>Start a conversation by typing or uploading an image below.</p>
                             </div>
                         )}
@@ -496,7 +515,7 @@ export default function Home() {
                       <Input
                           value={input}
                           onChange={(e) => setInput(e.target.value)}
-                          placeholder="Type your message to IndigoChat..."
+                          placeholder="Type your message to GreyAI..."
                           disabled={isLoading || !activeConversationId}
                           className="w-full rounded-full h-14 pr-16 text-base bg-muted border-transparent focus-visible:ring-primary/50 focus-visible:border-primary"
                           autoComplete="off"

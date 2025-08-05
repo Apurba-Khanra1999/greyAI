@@ -23,7 +23,7 @@ const conversationalPrompt = ai.definePrompt({
   name: 'conversationalPrompt',
   input: { schema: ConversationalChatInputSchema },
   output: { schema: ConversationalChatOutputSchema },
-  prompt: `You are a helpful and friendly AI assistant named IndigoChat.
+  prompt: `You are a helpful and friendly AI assistant named GreyAI.
   Provide a detailed, helpful, and conversational response to the user's prompt based on the provided conversation history and any images. Make your responses as long and thorough as possible.
   
   {{#each history}}
