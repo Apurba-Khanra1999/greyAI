@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Plus, Bot, User, BrainCircuit, PanelLeft, MessageSquare, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Send, Plus, Bot, User, BrainCircuit, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle } from 'lucide-react';
 import { getAiResponse } from './actions';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -30,10 +30,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Textarea } from '@/components/ui/textarea';
+import Image from 'next/image';
 
 type Message = {
   role: 'user' | 'assistant';
   content: string;
+  imageUrl?: string | null;
 };
 
 type Conversation = {
@@ -47,11 +49,13 @@ export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
   const [editingMessage, setEditingMessage] = useState<{ convoId: string; msgIndex: number; content: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load conversations from localStorage on initial render
   useEffect(() => {
@@ -119,6 +123,7 @@ export default function Home() {
     });
     setActiveConversationId(newConversation.id);
     setInput('');
+    setImage(null);
     if (isMobile) {
       setIsSidebarOpen(false);
     }
@@ -164,11 +169,12 @@ export default function Home() {
         // Find the conversation and update the message
         const targetConvo = conversations.find(c => c.id === convoId);
         if (!targetConvo) throw new Error("Conversation not found");
-
+        
+        // When editing, we can't re-submit an image. We only re-submit text.
         const updatedMessages = [...targetConvo.messages];
         // Truncate the conversation history at the point of the edited message
         const historyToResubmit = updatedMessages.slice(0, msgIndex);
-        historyToResubmit.push({ role: 'user', content: newContent });
+        historyToResubmit.push({ role: 'user', content: newContent, imageUrl: null });
 
         // Optimistically update the UI
         setConversations(prev =>
@@ -207,12 +213,12 @@ export default function Home() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !activeConversationId) return;
+    if ((!input.trim() && !image) || isLoading || !activeConversationId) return;
 
     const currentInput = input;
-    const userMessage: Message = { role: 'user', content: currentInput };
+    const currentImage = image;
+    const userMessage: Message = { role: 'user', content: currentInput, imageUrl: currentImage };
     
-    // Create a temporary optimistic update
     const tempConversationId = activeConversationId;
     const originalConversations = conversations;
 
@@ -229,12 +235,13 @@ export default function Home() {
     });
     
     setInput('');
+    setImage(null);
     setIsLoading(true);
 
     try {
       const currentConversation = conversations.find(c => c.id === tempConversationId);
       const updatedMessages = currentConversation ? [...currentConversation.messages, userMessage] : [userMessage];
-
+      
       const response = await getAiResponse(updatedMessages);
       const assistantMessage: Message = { role: 'assistant', content: response };
        
@@ -244,9 +251,9 @@ export default function Home() {
 
     } catch (error) {
        console.error(error);
-       // Rollback on error
        setConversations(originalConversations);
        setInput(currentInput); 
+       setImage(currentImage);
        toast({
         variant: "destructive",
         title: "An error occurred",
@@ -254,6 +261,25 @@ export default function Home() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({
+          variant: "destructive",
+          title: "Image too large",
+          description: "Please upload an image smaller than 2MB.",
+        });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -348,7 +374,7 @@ export default function Home() {
                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full pt-20">
                                 <BrainCircuit size={64} className="mb-4 text-primary opacity-50" />
                                 <p className="text-2xl font-medium">Welcome to IndigoChat</p>
-                                <p>Start a conversation by typing below.</p>
+                                <p>Start a conversation by typing or uploading an image below.</p>
                             </div>
                         )}
                         {messages.map((message, index) => {
@@ -387,10 +413,17 @@ export default function Home() {
                                           </div>
                                         </div>
                                       ) : (
-                                        <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
+                                        <>
+                                          {message.imageUrl && (
+                                            <div className="mb-2">
+                                              <Image src={message.imageUrl} alt="User upload" width={300} height={300} className="rounded-md" />
+                                            </div>
+                                          )}
+                                          <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
+                                        </>
                                       )}
                                   </div>
-                                  {message.role === 'user' && (
+                                  {message.role === 'user' && !message.imageUrl && (
                                       <div className="opacity-0 group-hover:opacity-100 transition-opacity self-start">
                                         {!isEditing && !isLoading && (
                                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingMessage({convoId: activeConversationId!, msgIndex: index, content: message.content })}>
@@ -428,7 +461,38 @@ export default function Home() {
             </CardContent>
             <CardFooter className="p-4 border-t bg-background shrink-0">
                 <div className="relative w-full max-w-3xl mx-auto">
-                  <form onSubmit={handleSubmit}>
+                   {image && (
+                     <div className="relative mb-2 p-2 border rounded-md bg-muted/50 w-fit">
+                        <Image src={image} alt="Image preview" width={80} height={80} className="rounded" />
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute -top-3 -right-3 h-7 w-7 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => setImage(null)}
+                        >
+                            <XCircle className="h-5 w-5" />
+                        </Button>
+                     </div>
+                   )}
+                  <form onSubmit={handleSubmit} className="flex items-center">
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleImageUpload} 
+                        className="hidden" 
+                        accept="image/png, image/jpeg, image/webp" 
+                      />
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isLoading || !!image}
+                        className="mr-2"
+                      >
+                         <Paperclip className="h-6 w-6" />
+                         <span className="sr-only">Attach an image</span>
+                      </Button>
                       <Input
                           value={input}
                           onChange={(e) => setInput(e.target.value)}
@@ -437,7 +501,7 @@ export default function Home() {
                           className="w-full rounded-full h-14 pr-16 text-base bg-muted focus-visible:ring-primary/50"
                           autoComplete="off"
                       />
-                      <Button type="submit" disabled={isLoading || !input.trim() || !activeConversationId} size="icon" className="rounded-full absolute right-2.5 top-1/2 -translate-y-1/2 h-10 w-10">
+                      <Button type="submit" disabled={isLoading || (!input.trim() && !image) || !activeConversationId} size="icon" className="rounded-full absolute right-2.5 top-1/2 -translate-y-1/2 h-10 w-10">
                           <Send className="h-6 w-6" />
                           <span className="sr-only">Send message</span>
                       </Button>
