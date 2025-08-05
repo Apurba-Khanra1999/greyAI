@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Plus, Bot, User, BrainCircuit, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle } from 'lucide-react';
+import { Send, Plus, Bot, User, BrainCircuit, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle, Sparkles } from 'lucide-react';
 import { getAiResponse } from './actions';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -288,11 +288,11 @@ export default function Home() {
         <div className="flex items-center justify-between gap-2 p-4 border-b shrink-0">
             <div className="flex items-center gap-2">
               <BrainCircuit className="text-primary h-8 w-8" />
-              <h1 className="text-xl font-bold">IndigoChat</h1>
+              <h1 className="text-2xl font-semibold tracking-tighter">IndigoChat</h1>
             </div>
         </div>
         <div className="p-2 border-b shrink-0">
-            <Button variant="outline" className="w-full justify-start text-base" onClick={handleNewConversation}>
+            <Button variant="outline" className="w-full justify-start text-base font-medium" onClick={handleNewConversation}>
               <Plus className="mr-2 h-5 w-5" />
               New Chat
             </Button>
@@ -337,7 +337,7 @@ export default function Home() {
 
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-background text-foreground bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
       {isMobile ? (
         <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
           <SheetTrigger asChild>
@@ -356,8 +356,8 @@ export default function Home() {
       )}
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-         <Card className="flex-1 flex flex-col shadow-none rounded-none bg-background border-0 h-full">
-            <CardHeader className="flex flex-row items-center p-4 border-b h-16 shrink-0">
+         <Card className="flex-1 flex flex-col shadow-none rounded-none bg-transparent border-0 h-full">
+            <CardHeader className="flex flex-row items-center p-4 border-b h-16 shrink-0 bg-background/80 backdrop-blur-sm">
                 {!isMobile && (
                   <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                     <PanelLeft size={24}/>
@@ -372,7 +372,7 @@ export default function Home() {
                     <div className="p-4 md:p-6 space-y-8">
                         {messages.length === 0 && !isLoading && (
                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full pt-20">
-                                <BrainCircuit size={64} className="mb-4 text-primary opacity-50" />
+                                <Sparkles size={64} className="mb-4 text-primary opacity-50" />
                                 <p className="text-2xl font-medium">Welcome to IndigoChat</p>
                                 <p>Start a conversation by typing or uploading an image below.</p>
                             </div>
@@ -392,7 +392,7 @@ export default function Home() {
                                 )}
                                 <div className={cn("flex items-center gap-2", message.role === 'user' ? "flex-row-reverse" : "")}>
                                   <div
-                                      className={cn("max-w-2xl rounded-2xl shadow-sm w-full",
+                                      className={cn("max-w-2xl rounded-2xl shadow-md w-full",
                                           !isEditing && "p-4",
                                           message.role === 'user'
                                               ? 'bg-primary text-primary-foreground'
@@ -416,10 +416,10 @@ export default function Home() {
                                         <>
                                           {message.imageUrl && (
                                             <div className="mb-2">
-                                              <Image src={message.imageUrl} alt="User upload" width={300} height={300} className="rounded-md" />
+                                              <Image src={message.imageUrl} alt="User upload" width={300} height={300} className="rounded-lg" />
                                             </div>
                                           )}
-                                          <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
+                                          <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current dark:prose-invert prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
                                         </>
                                       )}
                                   </div>
@@ -434,7 +434,7 @@ export default function Home() {
                                   )}
                                 </div>
                                 {message.role === 'user' && (
-                                    <Avatar className="h-10 w-10 border">
+                                    <Avatar className="h-10 w-10 border bg-background">
                                         <AvatarFallback><User size={22}/></AvatarFallback>
                                     </Avatar>
                                 )}
@@ -459,15 +459,15 @@ export default function Home() {
                     </div>
                 </ScrollArea>
             </CardContent>
-            <CardFooter className="p-4 border-t bg-background shrink-0">
+            <CardFooter className="p-4 border-t bg-background/80 backdrop-blur-sm shrink-0">
                 <div className="relative w-full max-w-3xl mx-auto">
                    {image && (
-                     <div className="relative mb-2 p-2 border rounded-md bg-muted/50 w-fit">
-                        <Image src={image} alt="Image preview" width={80} height={80} className="rounded" />
+                     <div className="relative mb-2 p-2 border rounded-lg bg-muted/50 w-fit">
+                        <Image src={image} alt="Image preview" width={80} height={80} className="rounded-md" />
                         <Button
-                            variant="ghost"
+                            variant="destructive"
                             size="icon"
-                            className="absolute -top-3 -right-3 h-7 w-7 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="absolute -top-3 -right-3 h-7 w-7 rounded-full"
                             onClick={() => setImage(null)}
                         >
                             <XCircle className="h-5 w-5" />
@@ -498,7 +498,7 @@ export default function Home() {
                           onChange={(e) => setInput(e.target.value)}
                           placeholder="Type your message to IndigoChat..."
                           disabled={isLoading || !activeConversationId}
-                          className="w-full rounded-full h-14 pr-16 text-base bg-muted focus-visible:ring-primary/50"
+                          className="w-full rounded-full h-14 pr-16 text-base bg-muted border-transparent focus-visible:ring-primary/50 focus-visible:border-primary"
                           autoComplete="off"
                       />
                       <Button type="submit" disabled={isLoading || (!input.trim() && !image) || !activeConversationId} size="icon" className="rounded-full absolute right-2.5 top-1/2 -translate-y-1/2 h-10 w-10">
