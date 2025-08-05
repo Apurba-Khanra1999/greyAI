@@ -3,7 +3,12 @@
 import { filterOffensivePrompts } from '@/ai/flows/filter-offensive-prompts';
 import { conversationalChat } from '@/ai/flows/conversational-chat';
 
-export async function getAiResponse(prompt: string): Promise<string> {
+type Message = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export async function getAiResponse(history: Message[], prompt: string): Promise<string> {
   // First, check for offensive content.
   const filterResult = await filterOffensivePrompts({ prompt });
   if (filterResult.isOffensive) {
@@ -11,6 +16,6 @@ export async function getAiResponse(prompt: string): Promise<string> {
   }
 
   // If not offensive, get a conversational response.
-  const chatResult = await conversationalChat({ prompt });
+  const chatResult = await conversationalChat({ history, prompt });
   return chatResult.response;
 }
