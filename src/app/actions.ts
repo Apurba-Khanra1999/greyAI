@@ -6,7 +6,8 @@ import { conversationalChat } from '@/ai/flows/conversational-chat';
 type Message = {
   role: 'user' | 'assistant';
   content: string;
-  imageUrl?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
 };
 
 export async function getAiResponse(allMessages: Message[]): Promise<string> {
@@ -22,7 +23,7 @@ export async function getAiResponse(allMessages: Message[]): Promise<string> {
 
   const prompt = lastMessage.content;
   const history = allMessages.slice(0, -1);
-  const photoDataUri = lastMessage.imageUrl;
+  const fileDataUri = lastMessage.fileUrl;
   
   // First, check for offensive content.
   const filterResult = await filterOffensivePrompts({ prompt });
@@ -31,6 +32,6 @@ export async function getAiResponse(allMessages: Message[]): Promise<string> {
   }
 
   // If not offensive, get a conversational response.
-  const chatResult = await conversationalChat({ history, prompt, photoDataUri });
+  const chatResult = await conversationalChat({ history, prompt, fileDataUri });
   return chatResult.response;
 }

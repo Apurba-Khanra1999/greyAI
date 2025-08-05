@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Plus, Bot, User, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle, Sparkles } from 'lucide-react';
+import { Send, Plus, Bot, User, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle, Sparkles, FileText } from 'lucide-react';
 import { getAiResponse } from './actions';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -56,7 +56,8 @@ const GreyAiIcon = () => (
 type Message = {
   role: 'user' | 'assistant';
   content: string;
-  imageUrl?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
 };
 
 type Conversation = {
@@ -70,7 +71,7 @@ export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
-  const [image, setImage] = useState<string | null>(null);
+  const [file, setFile] = useState<{url: string, name: string, type: string} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -144,7 +145,7 @@ export default function Home() {
     });
     setActiveConversationId(newConversation.id);
     setInput('');
-    setImage(null);
+    setFile(null);
     if (isMobile) {
       setIsSidebarOpen(false);
     }
@@ -191,11 +192,11 @@ export default function Home() {
         const targetConvo = conversations.find(c => c.id === convoId);
         if (!targetConvo) throw new Error("Conversation not found");
         
-        // When editing, we can't re-submit an image. We only re-submit text.
+        // When editing, we can't re-submit a file. We only re-submit text.
         const updatedMessages = [...targetConvo.messages];
         // Truncate the conversation history at the point of the edited message
         const historyToResubmit = updatedMessages.slice(0, msgIndex);
-        historyToResubmit.push({ role: 'user', content: newContent, imageUrl: null });
+        historyToResubmit.push({ role: 'user', content: newContent, fileUrl: null, fileName: null });
 
         // Optimistically update the UI
         setConversations(prev =>
@@ -234,11 +235,16 @@ export default function Home() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if ((!input.trim() && !image) || isLoading || !activeConversationId) return;
+    if ((!input.trim() && !file) || isLoading || !activeConversationId) return;
 
     const currentInput = input;
-    const currentImage = image;
-    const userMessage: Message = { role: 'user', content: currentInput, imageUrl: currentImage };
+    const currentFile = file;
+    const userMessage: Message = { 
+      role: 'user', 
+      content: currentInput, 
+      fileUrl: currentFile?.url,
+      fileName: currentFile?.name,
+    };
     
     const tempConversationId = activeConversationId;
     const originalConversations = conversations;
@@ -256,7 +262,7 @@ export default function Home() {
     });
     
     setInput('');
-    setImage(null);
+    setFile(null);
     setIsLoading(true);
 
     try {
@@ -274,7 +280,7 @@ export default function Home() {
        console.error(error);
        setConversations(originalConversations);
        setInput(currentInput); 
-       setImage(currentImage);
+       setFile(currentFile);
        toast({
         variant: "destructive",
         title: "An error occurred",
@@ -285,24 +291,34 @@ export default function Home() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFile = e.target.files?.[0];
+    if (uploadedFile) {
+      if (uploadedFile.size > 4 * 1024 * 1024) { // 4MB limit
         toast({
           variant: "destructive",
-          title: "Image too large",
-          description: "Please upload an image smaller than 2MB.",
+          title: "File too large",
+          description: "Please upload a file smaller than 4MB.",
         });
         return;
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImage(reader.result as string);
+        setFile({
+            url: reader.result as string,
+            name: uploadedFile.name,
+            type: uploadedFile.type
+        });
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(uploadedFile);
+    }
+    // Reset file input value to allow re-uploading the same file
+    if(fileInputRef.current) {
+        fileInputRef.current.value = '';
     }
   };
+
+  const isImage = (fileType: string) => fileType.startsWith('image/');
 
   const SidebarContent = () => (
      <div className="flex flex-col h-full bg-card border-r overflow-hidden">
@@ -395,7 +411,7 @@ export default function Home() {
                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full pt-20">
                                 <Sparkles size={64} className="mb-4 text-primary opacity-50" />
                                 <p className="text-2xl font-medium">Welcome to GreyAI</p>
-                                <p>Start a conversation by typing or uploading an image below.</p>
+                                <p>Start a conversation by typing or uploading a file below.</p>
                             </div>
                         )}
                         {messages.map((message, index) => {
@@ -435,16 +451,22 @@ export default function Home() {
                                         </div>
                                       ) : (
                                         <>
-                                          {message.imageUrl && (
+                                          {message.fileUrl && isImage(message.fileUrl.split(':')[1].split(';')[0]) && (
                                             <div className="mb-2">
-                                              <Image src={message.imageUrl} alt="User upload" width={300} height={300} className="rounded-lg" />
+                                              <Image src={message.fileUrl} alt="User upload" width={300} height={300} className="rounded-lg" />
+                                            </div>
+                                          )}
+                                          {message.fileName && !isImage(message.fileUrl!.split(':')[1].split(';')[0]) && (
+                                            <div className="mb-2 flex items-center gap-2 rounded-lg bg-black/10 p-2">
+                                              <FileText className="h-6 w-6" />
+                                              <span className="truncate font-medium">{message.fileName}</span>
                                             </div>
                                           )}
                                           <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current dark:prose-invert prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
                                         </>
                                       )}
                                   </div>
-                                  {message.role === 'user' && !message.imageUrl && (
+                                  {message.role === 'user' && !message.fileUrl && (
                                       <div className="opacity-0 group-hover:opacity-100 transition-opacity self-start">
                                         {!isEditing && !isLoading && (
                                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingMessage({convoId: activeConversationId!, msgIndex: index, content: message.content })}>
@@ -482,14 +504,21 @@ export default function Home() {
             </CardContent>
             <CardFooter className="p-4 border-t bg-background/80 backdrop-blur-sm shrink-0">
                 <div className="relative w-full max-w-3xl mx-auto">
-                   {image && (
+                   {file && (
                      <div className="relative mb-2 p-2 border rounded-lg bg-muted/50 w-fit">
-                        <Image src={image} alt="Image preview" width={80} height={80} className="rounded-md" />
+                        {isImage(file.type) ? (
+                            <Image src={file.url} alt="Image preview" width={80} height={80} className="rounded-md" />
+                        ) : (
+                            <div className="flex items-center gap-3 p-2">
+                               <FileText className="h-8 w-8 text-muted-foreground" />
+                               <span className="text-sm font-medium text-muted-foreground max-w-xs truncate">{file.name}</span>
+                            </div>
+                        )}
                         <Button
                             variant="destructive"
                             size="icon"
                             className="absolute -top-3 -right-3 h-7 w-7 rounded-full"
-                            onClick={() => setImage(null)}
+                            onClick={() => setFile(null)}
                         >
                             <XCircle className="h-5 w-5" />
                         </Button>
@@ -499,20 +528,20 @@ export default function Home() {
                       <input 
                         type="file" 
                         ref={fileInputRef} 
-                        onChange={handleImageUpload} 
+                        onChange={handleFileUpload} 
                         className="hidden" 
-                        accept="image/png, image/jpeg, image/webp" 
+                        accept="image/png, image/jpeg, image/webp, application/pdf" 
                       />
                       <Button 
                         type="button" 
                         variant="ghost" 
                         size="icon" 
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={isLoading || !!image}
+                        disabled={isLoading || !!file}
                         className="mr-2"
                       >
                          <Paperclip className="h-6 w-6" />
-                         <span className="sr-only">Attach an image</span>
+                         <span className="sr-only">Attach a file</span>
                       </Button>
                       <Input
                           value={input}
@@ -522,7 +551,7 @@ export default function Home() {
                           className="w-full rounded-full h-14 pr-16 text-base bg-muted border-transparent focus-visible:ring-primary/50 focus-visible:border-primary"
                           autoComplete="off"
                       />
-                      <Button type="submit" disabled={isLoading || (!input.trim() && !image) || !activeConversationId} size="icon" className="rounded-full absolute right-2.5 top-1/2 -translate-y-1/2 h-10 w-10">
+                      <Button type="submit" disabled={isLoading || (!input.trim() && !file) || !activeConversationId} size="icon" className="rounded-full absolute right-2.5 top-1/2 -translate-y-1/2 h-10 w-10">
                           <Send className="h-6 w-6" />
                           <span className="sr-only">Send message</span>
                       </Button>
@@ -534,3 +563,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

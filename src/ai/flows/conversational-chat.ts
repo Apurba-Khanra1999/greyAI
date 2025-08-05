@@ -6,13 +6,13 @@ import { z } from 'zod';
 const MessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: z.string(),
-  imageUrl: z.string().optional().nullable().describe("A photo of an object, as a data URI. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
+  fileUrl: z.string().optional().nullable().describe("A file, as a data URI. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 });
 
 const ConversationalChatInputSchema = z.object({
   history: z.array(MessageSchema).describe("The conversation history."),
   prompt: z.string().describe("The user's query or message."),
-  photoDataUri: z.string().optional().nullable().describe("A photo of an object, as a data URI. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
+  fileDataUri: z.string().optional().nullable().describe("A file, as a data URI. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 });
 
 const ConversationalChatOutputSchema = z.object({
@@ -24,20 +24,22 @@ const conversationalPrompt = ai.definePrompt({
   input: { schema: ConversationalChatInputSchema },
   output: { schema: ConversationalChatOutputSchema },
   prompt: `You are a helpful and friendly AI assistant named GreyAI.
-  Provide a detailed, helpful, and conversational response to the user's prompt based on the provided conversation history and any images. Make your responses as long and thorough as possible.
+  Provide a detailed, helpful, and conversational response to the user's prompt based on the provided conversation history and any attached files (images or documents).
   
+  If a file is provided, use it as the primary source of information to answer the user's questions.
+
   {{#each history}}
     {{#if content}}
       {{role}}: {{content}}
     {{/if}}
-    {{#if imageUrl}}
-      (Image was present in this message)
+    {{#if fileUrl}}
+      (A file was present in this message)
     {{/if}}
   {{/each}}
 
   user: {{{prompt}}}
-  {{#if photoDataUri}}
-  {{media url=photoDataUri}}
+  {{#if fileDataUri}}
+  {{media url=fileDataUri}}
   {{/if}}
   assistant:`,
 });
