@@ -204,7 +204,7 @@ export default function Home() {
   };
 
   const SidebarContent = () => (
-     <div className="flex flex-col h-full bg-background border-r overflow-hidden">
+     <div className="flex flex-col h-full bg-card border-r overflow-hidden">
         <div className="flex items-center justify-between gap-2 p-4 border-b shrink-0">
             <div className="flex items-center gap-2">
               <BrainCircuit className="text-primary h-8 w-8" />
@@ -278,9 +278,11 @@ export default function Home() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
          <Card className="flex-1 flex flex-col shadow-none rounded-none bg-background border-0 h-full">
             <CardHeader className="flex flex-row items-center p-4 border-b h-16 shrink-0">
-                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-                  <PanelLeft size={24}/>
-                </Button>
+                {!isMobile && (
+                  <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+                    <PanelLeft size={24}/>
+                  </Button>
+                )}
                 <div className="flex-1 ml-4">
                     <h2 className="text-lg font-semibold truncate">{activeConversation?.title}</h2>
                 </div>
@@ -313,7 +315,7 @@ export default function Home() {
                                             : 'bg-card border'
                                     )}
                                 >
-                                    <ReactMarkdown className="prose max-w-none text-base leading-relaxed text-current">{message.content}</ReactMarkdown>
+                                    <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
                                 </div>
                                 {message.role === 'user' && (
                                     <Avatar className="h-10 w-10 border">
