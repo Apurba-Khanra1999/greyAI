@@ -9,6 +9,10 @@ type Message = {
 };
 
 export async function getAiResponse(allMessages: Message[]): Promise<string> {
+  if (allMessages.length === 0) {
+    return "I can't respond to an empty conversation.";
+  }
+  
   const lastMessage = allMessages[allMessages.length - 1];
   
   if (lastMessage?.role !== 'user') {

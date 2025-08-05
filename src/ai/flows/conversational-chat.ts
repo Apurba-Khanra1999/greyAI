@@ -2,13 +2,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import Handlebars from 'handlebars';
-
-// Register a custom Handlebars helper for equality check
-Handlebars.registerHelper('eq', function (a, b) {
-  return a === b;
-});
-
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -24,6 +17,7 @@ const ConversationalChatOutputSchema = z.object({
   response: z.string().describe('The AI-generated conversational response.'),
 });
 
+// A simplified prompt that is more robust.
 const conversationalPrompt = ai.definePrompt({
   name: 'conversationalPrompt',
   input: { schema: ConversationalChatInputSchema },
@@ -31,15 +25,14 @@ const conversationalPrompt = ai.definePrompt({
   prompt: `You are a helpful and friendly AI assistant named IndigoChat.
   Provide a concise and conversational response to the user's prompt based on the provided conversation history.
   
-  {{#if history}}
-  Conversation History:
   {{#each history}}
-  {{#if (eq this.role 'user')}}User: {{this.content}}{{/if}}
-  {{#if (eq this.role 'assistant')}}Assistant: {{this.content}}{{/if}}
-  {{/each}}
+  {{#if content}}
+  {{role}}: {{content}}
   {{/if}}
+  {{/each}}
 
-  User's Prompt: {{{prompt}}}`,
+  user: {{{prompt}}}
+  assistant:`,
 });
 
 export const conversationalChat = ai.defineFlow(
