@@ -9,7 +9,13 @@ type Message = {
 };
 
 export async function getAiResponse(allMessages: Message[]): Promise<string> {
-  const prompt = allMessages.slice(-1)[0].content;
+  const lastMessage = allMessages[allMessages.length - 1];
+  
+  if (lastMessage?.role !== 'user') {
+    return "I can only respond to user messages.";
+  }
+
+  const prompt = lastMessage.content;
   const history = allMessages.slice(0, -1);
   
   // First, check for offensive content.

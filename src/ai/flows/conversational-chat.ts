@@ -2,6 +2,13 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import Handlebars from 'handlebars';
+
+// Register a custom Handlebars helper for equality check
+Handlebars.registerHelper('eq', function (a, b) {
+  return a === b;
+});
+
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
