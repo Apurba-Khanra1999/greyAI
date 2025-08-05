@@ -364,44 +364,46 @@ export default function Home() {
                                         <AvatarFallback className="bg-primary text-primary-foreground"><Bot size={22}/></AvatarFallback>
                                     </Avatar>
                                 )}
-                                <div
-                                    className={cn("max-w-2xl rounded-2xl shadow-sm w-full",
-                                        !isEditing && "p-4",
-                                        message.role === 'user'
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-card border'
-                                    )}
-                                >
-                                    {isEditing ? (
-                                      <div className="space-y-2 p-2">
-                                        <Textarea 
-                                          value={editingMessage.content}
-                                          onChange={(e) => setEditingMessage({...editingMessage, content: e.target.value})}
-                                          className="bg-background text-foreground text-base"
-                                          rows={3}
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                          <Button variant="ghost" size="icon" onClick={() => setEditingMessage(null)}><X className="h-5 w-5"/></Button>
-                                          <Button variant="ghost" size="icon" onClick={() => handleEditSubmit(editingMessage.convoId, editingMessage.msgIndex, editingMessage.content)}><Check className="h-5 w-5"/></Button>
+                                <div className={cn("flex items-center gap-2", message.role === 'user' ? "flex-row-reverse" : "")}>
+                                  <div
+                                      className={cn("max-w-2xl rounded-2xl shadow-sm w-full",
+                                          !isEditing && "p-4",
+                                          message.role === 'user'
+                                              ? 'bg-primary text-primary-foreground'
+                                              : 'bg-card border'
+                                      )}
+                                  >
+                                      {isEditing ? (
+                                        <div className="space-y-2 p-2">
+                                          <Textarea 
+                                            value={editingMessage.content}
+                                            onChange={(e) => setEditingMessage({...editingMessage, content: e.target.value})}
+                                            className="bg-background text-foreground text-base"
+                                            rows={3}
+                                          />
+                                          <div className="flex justify-end gap-2">
+                                            <Button variant="ghost" size="icon" onClick={() => setEditingMessage(null)}><X className="h-5 w-5"/></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleEditSubmit(editingMessage.convoId, editingMessage.msgIndex, editingMessage.content)}><Check className="h-5 w-5"/></Button>
+                                          </div>
                                         </div>
+                                      ) : (
+                                        <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
+                                      )}
+                                  </div>
+                                  {message.role === 'user' && (
+                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity self-start">
+                                        {!isEditing && !isLoading && (
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingMessage({convoId: activeConversationId!, msgIndex: index, content: message.content })}>
+                                              <Pencil className="h-4 w-4" />
+                                          </Button>
+                                        )}
                                       </div>
-                                    ) : (
-                                      <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
-                                    )}
+                                  )}
                                 </div>
                                 {message.role === 'user' && (
-                                  <>
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                       {!isEditing && !isLoading && (
-                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground" onClick={() => setEditingMessage({convoId: activeConversationId!, msgIndex: index, content: message.content })}>
-                                           <Pencil className="h-4 w-4" />
-                                         </Button>
-                                       )}
-                                    </div>
                                     <Avatar className="h-10 w-10 border">
                                         <AvatarFallback><User size={22}/></AvatarFallback>
                                     </Avatar>
-                                  </>
                                 )}
                             </div>
                           );
