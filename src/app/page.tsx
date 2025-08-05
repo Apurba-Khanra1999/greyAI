@@ -36,17 +36,19 @@ const GreyAiIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
-    fill="currentColor"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className="h-8 w-8 text-primary"
   >
-    <path
-      fillRule="evenodd"
-      d="M4.5 9.75a6 6 0 0111.571-2.012A8.25 8.25 0 0122.5 9.75V19.5a.75.75 0 01-.75.75h-3.375a.75.75 0 01-.75-.75V15.75a.75.75 0 00-.75-.75h-4.5a.75.75 0 00-.75.75v3.75a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75V9.75z"
-      clipRule="evenodd"
-    />
-    <path
-      d="M1.5 9.75a.75.75 0 01.75-.75h1.5a.75.75 0 01.75.75v9.75a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75V9.75z"
-    />
+    <path d="M12 8V4H8" />
+    <rect width="16" height="12" x="4" y="8" rx="2" />
+    <path d="M2 14h2" />
+    <path d="M20 14h2" />
+    <path d="M15 13v2" />
+    <path d="M9 13v2" />
   </svg>
 );
 
