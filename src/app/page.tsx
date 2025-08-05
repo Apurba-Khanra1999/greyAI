@@ -16,6 +16,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { useIsMobile } from '@/hooks/use-mobile';
+import ReactMarkdown from 'react-markdown';
 
 
 type Message = {
@@ -153,13 +154,13 @@ export default function Home() {
                                           </Avatar>
                                       )}
                                       <div
-                                          className={cn("max-w-2xl rounded-2xl p-4 shadow-sm",
+                                          className={cn("max-w-2xl rounded-2xl p-4 shadow-sm prose-invert prose-p:my-0",
                                               message.role === 'user'
                                                   ? 'bg-primary text-primary-foreground'
                                                   : 'bg-muted'
                                           )}
                                       >
-                                          <p className="text-base leading-relaxed">{message.content}</p>
+                                          <ReactMarkdown className="prose dark:prose-invert max-w-none text-base leading-relaxed">{message.content}</ReactMarkdown>
                                       </div>
                                       {message.role === 'user' && (
                                           <Avatar className="h-10 w-10 border">
