@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Plus, Bot, User, BrainCircuit, PanelLeft, MessageSquare, Trash2 } from 'lucide-react';
+import { Send, Plus, Bot, User, BrainCircuit, PanelLeft, MessageSquare, Trash2, Pencil, Check, X } from 'lucide-react';
 import { getAiResponse } from './actions';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Textarea } from '@/components/ui/textarea';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -50,6 +51,7 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
+  const [editingMessage, setEditingMessage] = useState<{ convoId: string; msgIndex: number; content: string } | null>(null);
 
   // Load conversations from localStorage on initial render
   useEffect(() => {
@@ -151,6 +153,57 @@ export default function Home() {
     }
   }, [conversations, activeConversationId]);
 
+  const handleEditSubmit = async (convoId: string, msgIndex: number, newContent: string) => {
+    if (!newContent.trim()) return;
+
+    const originalConversations = conversations;
+    setEditingMessage(null);
+    setIsLoading(true);
+
+    try {
+        // Find the conversation and update the message
+        const targetConvo = conversations.find(c => c.id === convoId);
+        if (!targetConvo) throw new Error("Conversation not found");
+
+        const updatedMessages = [...targetConvo.messages];
+        // Truncate the conversation history at the point of the edited message
+        const historyToResubmit = updatedMessages.slice(0, msgIndex);
+        historyToResubmit.push({ role: 'user', content: newContent });
+
+        // Optimistically update the UI
+        setConversations(prev =>
+            prev.map(c =>
+                c.id === convoId
+                    ? { ...c, messages: historyToResubmit }
+                    : c
+            )
+        );
+
+        const response = await getAiResponse(historyToResubmit);
+        const assistantMessage: Message = { role: 'assistant', content: response };
+
+        // Update with the final response
+        setConversations(prev =>
+            prev.map(c =>
+                c.id === convoId
+                    ? { ...c, messages: [...historyToResubmit, assistantMessage] }
+                    : c
+            )
+        );
+
+    } catch (error) {
+        console.error(error);
+        setConversations(originalConversations); // Rollback on error
+        toast({
+            variant: "destructive",
+            title: "An error occurred",
+            description: "Failed to get a response from the AI after editing. Please try again.",
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -167,7 +220,8 @@ export default function Home() {
       const newConversations = prev.map(c => {
         if (c.id === tempConversationId) {
           const updatedMessages = [...c.messages, userMessage];
-          return { ...c, messages: updatedMessages, title: c.messages.length === 0 ? currentInput.substring(0, 30) : c.title }
+          const newTitle = c.messages.length === 0 ? currentInput.substring(0, 30) : c.title;
+          return { ...c, messages: updatedMessages, title: newTitle === "New Chat" && updatedMessages.length === 1 ? currentInput.substring(0, 30) : newTitle }
         }
         return c;
       });
@@ -297,10 +351,12 @@ export default function Home() {
                                 <p>Start a conversation by typing below.</p>
                             </div>
                         )}
-                        {messages.map((message, index) => (
+                        {messages.map((message, index) => {
+                          const isEditing = editingMessage?.convoId === activeConversationId && editingMessage?.msgIndex === index;
+                          return (
                             <div
                                 key={index}
-                                className={cn("flex items-start gap-4 animate-in fade-in", 
+                                className={cn("flex items-start gap-4 animate-in fade-in group", 
                                   message.role === 'user' ? 'justify-end' : '')}
                             >
                                 {message.role === 'assistant' && (
@@ -309,21 +365,47 @@ export default function Home() {
                                     </Avatar>
                                 )}
                                 <div
-                                    className={cn("max-w-2xl rounded-2xl p-4 shadow-sm",
+                                    className={cn("max-w-2xl rounded-2xl shadow-sm w-full",
+                                        !isEditing && "p-4",
                                         message.role === 'user'
                                             ? 'bg-primary text-primary-foreground'
                                             : 'bg-card border'
                                     )}
                                 >
-                                    <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
+                                    {isEditing ? (
+                                      <div className="space-y-2 p-2">
+                                        <Textarea 
+                                          value={editingMessage.content}
+                                          onChange={(e) => setEditingMessage({...editingMessage, content: e.target.value})}
+                                          className="bg-background text-foreground text-base"
+                                          rows={3}
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                          <Button variant="ghost" size="icon" onClick={() => setEditingMessage(null)}><X className="h-5 w-5"/></Button>
+                                          <Button variant="ghost" size="icon" onClick={() => handleEditSubmit(editingMessage.convoId, editingMessage.msgIndex, editingMessage.content)}><Check className="h-5 w-5"/></Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <ReactMarkdown className="prose prose-sm sm:prose-base max-w-none text-current prose-p:my-2 prose-headings:my-4 prose-ol:my-2 prose-ul:my-2 prose-li:my-0">{message.content}</ReactMarkdown>
+                                    )}
                                 </div>
                                 {message.role === 'user' && (
+                                  <>
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                       {!isEditing && !isLoading && (
+                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground" onClick={() => setEditingMessage({convoId: activeConversationId!, msgIndex: index, content: message.content })}>
+                                           <Pencil className="h-4 w-4" />
+                                         </Button>
+                                       )}
+                                    </div>
                                     <Avatar className="h-10 w-10 border">
                                         <AvatarFallback><User size={22}/></AvatarFallback>
                                     </Avatar>
+                                  </>
                                 )}
                             </div>
-                        ))}
+                          );
+                        })}
                         {isLoading && (
                            <div className="flex items-start gap-4 animate-in fade-in">
                              <Avatar className="h-10 w-10 border-2 border-primary/40">
