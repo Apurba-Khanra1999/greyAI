@@ -53,15 +53,22 @@ export default function Home() {
 
   // Load conversations from localStorage on initial render
   useEffect(() => {
-    const savedConversations = localStorage.getItem('conversations');
-    if (savedConversations) {
-      const parsedConversations: Conversation[] = JSON.parse(savedConversations);
-      setConversations(parsedConversations);
-      if (parsedConversations.length > 0) {
-        setActiveConversationId(parsedConversations[0].id);
+    try {
+      const savedConversations = localStorage.getItem('conversations');
+      if (savedConversations) {
+        const parsedConversations: Conversation[] = JSON.parse(savedConversations);
+        if (Array.isArray(parsedConversations) && parsedConversations.length > 0) {
+          setConversations(parsedConversations);
+          setActiveConversationId(parsedConversations[0].id);
+        } else {
+          handleNewConversation();
+        }
+      } else {
+          handleNewConversation();
       }
-    } else {
-        handleNewConversation();
+    } catch (error) {
+      console.error("Failed to parse conversations from localStorage", error);
+      handleNewConversation();
     }
   }, []);
 
@@ -70,9 +77,12 @@ export default function Home() {
     if (conversations.length > 0) {
       localStorage.setItem('conversations', JSON.stringify(conversations));
     } else {
-      localStorage.removeItem('conversations');
+      // If there are no conversations, we shouldn't have an active one.
+      if (activeConversationId !== null) {
+        localStorage.removeItem('conversations');
+      }
     }
-  }, [conversations]);
+  }, [conversations, activeConversationId]);
 
 
   useEffect(() => {
@@ -91,7 +101,8 @@ export default function Home() {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // A slight delay to allow the new message to be rendered before scrolling
+    setTimeout(scrollToBottom, 100);
   }, [messages, isLoading]);
 
   const handleNewConversation = () => {
@@ -100,7 +111,10 @@ export default function Home() {
       title: 'New Chat',
       messages: [],
     };
-    setConversations(prev => [newConversation, ...prev]);
+    setConversations(prev => {
+        const newConversations = [newConversation, ...prev];
+        return newConversations;
+    });
     setActiveConversationId(newConversation.id);
     setInput('');
     if (isMobile) {
@@ -122,12 +136,21 @@ export default function Home() {
         if (newConversations.length > 0) {
              setActiveConversationId(newConversations[0].id);
         } else {
-             handleNewConversation();
+             // This will call handleNewConversation and set a new activeId
+             setActiveConversationId(null);
         }
       }
-      return newConversations.length > 0 ? newConversations : [];
+      return newConversations;
     });
   }
+
+  // Effect to create a new conversation if all are deleted
+  useEffect(() => {
+    if (conversations.length === 0 && activeConversationId === null) {
+      handleNewConversation();
+    }
+  }, [conversations, activeConversationId]);
+
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -136,27 +159,41 @@ export default function Home() {
     const currentInput = input;
     const userMessage: Message = { role: 'user', content: currentInput };
     
-    const updatedMessages = [...messages, userMessage];
-    
-    setConversations(prev => prev.map(c => 
-      c.id === activeConversationId ? { ...c, messages: updatedMessages, title: c.messages.length === 0 ? currentInput.substring(0, 30) : c.title } : c
-    ));
+    // Create a temporary optimistic update
+    const tempConversationId = activeConversationId;
+    const originalConversations = conversations;
+
+    setConversations(prev => {
+      const newConversations = prev.map(c => {
+        if (c.id === tempConversationId) {
+          const updatedMessages = [...c.messages, userMessage];
+          return { ...c, messages: updatedMessages, title: c.messages.length === 0 ? currentInput.substring(0, 30) : c.title }
+        }
+        return c;
+      });
+      return newConversations;
+    });
     
     setInput('');
     setIsLoading(true);
 
     try {
+      const currentConversation = conversations.find(c => c.id === tempConversationId);
+      const updatedMessages = currentConversation ? [...currentConversation.messages, userMessage] : [userMessage];
+
       const response = await getAiResponse(updatedMessages);
       const assistantMessage: Message = { role: 'assistant', content: response };
+       
        setConversations(prev => prev.map(c => 
-        c.id === activeConversationId ? { ...c, messages: [...updatedMessages, assistantMessage] } : c
+        c.id === tempConversationId ? { ...c, messages: [...updatedMessages, assistantMessage] } : c
       ));
 
     } catch (error) {
        console.error(error);
-       setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages } : c));
-      setInput(currentInput); // Restore the input
-      toast({
+       // Rollback on error
+       setConversations(originalConversations);
+       setInput(currentInput); 
+       toast({
         variant: "destructive",
         title: "An error occurred",
         description: "Failed to get a response from the AI. Please try again.",
@@ -167,14 +204,14 @@ export default function Home() {
   };
 
   const SidebarContent = () => (
-     <div className="flex flex-col h-full bg-gray-50 border-r">
-        <div className="flex items-center justify-between gap-2 p-4 border-b">
+     <div className="flex flex-col h-full bg-background border-r overflow-hidden">
+        <div className="flex items-center justify-between gap-2 p-4 border-b shrink-0">
             <div className="flex items-center gap-2">
               <BrainCircuit className="text-primary h-8 w-8" />
               <h1 className="text-xl font-bold">IndigoChat</h1>
             </div>
         </div>
-        <div className="p-2 border-b">
+        <div className="p-2 border-b shrink-0">
             <Button variant="outline" className="w-full justify-start text-base" onClick={handleNewConversation}>
               <Plus className="mr-2 h-5 w-5" />
               New Chat
@@ -220,7 +257,7 @@ export default function Home() {
 
 
   return (
-    <div className="flex h-screen bg-gray-100 text-foreground">
+    <div className="flex h-screen bg-background text-foreground">
       {isMobile ? (
         <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
           <SheetTrigger asChild>
@@ -233,14 +270,14 @@ export default function Home() {
           </SheetContent>
         </Sheet>
       ) : (
-        <aside className={cn("transition-all duration-300 ease-in-out h-full", isSidebarOpen ? 'w-80' : 'w-0 hidden')}>
-           {isSidebarOpen && <SidebarContent />}
+        <aside className={cn("transition-all duration-300 ease-in-out h-full", isSidebarOpen ? 'w-80' : 'w-0')}>
+           <SidebarContent />
         </aside>
       )}
 
-      <main className="flex-1 flex flex-col h-screen">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
          <Card className="flex-1 flex flex-col shadow-none rounded-none bg-background border-0 h-full">
-            <CardHeader className="flex flex-row items-center p-4 border-b h-16">
+            <CardHeader className="flex flex-row items-center p-4 border-b h-16 shrink-0">
                 <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                   <PanelLeft size={24}/>
                 </Button>
@@ -270,13 +307,13 @@ export default function Home() {
                                     </Avatar>
                                 )}
                                 <div
-                                    className={cn("max-w-2xl rounded-2xl p-4 shadow-sm prose",
+                                    className={cn("max-w-2xl rounded-2xl p-4 shadow-sm",
                                         message.role === 'user'
                                             ? 'bg-primary text-primary-foreground'
-                                            : 'bg-muted text-foreground'
+                                            : 'bg-card border'
                                     )}
                                 >
-                                    <ReactMarkdown className="prose max-w-none text-base leading-relaxed">{message.content}</ReactMarkdown>
+                                    <ReactMarkdown className="prose max-w-none text-base leading-relaxed text-current">{message.content}</ReactMarkdown>
                                 </div>
                                 {message.role === 'user' && (
                                     <Avatar className="h-10 w-10 border">
@@ -303,7 +340,7 @@ export default function Home() {
                     </div>
                 </ScrollArea>
             </CardContent>
-            <CardFooter className="p-4 border-t bg-background">
+            <CardFooter className="p-4 border-t bg-background shrink-0">
                 <div className="relative w-full max-w-3xl mx-auto">
                   <form onSubmit={handleSubmit}>
                       <Input
