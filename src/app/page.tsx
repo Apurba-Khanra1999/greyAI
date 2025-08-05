@@ -61,21 +61,20 @@ export default function Home() {
     const currentInput = input;
     const userMessage: Message = { role: 'user', content: currentInput };
     
-    // Optimistically update the UI with the user's message
-    setMessages((prev) => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     
     setInput('');
     setIsLoading(true);
 
     try {
-      const history = [...messages, userMessage];
-      const response = await getAiResponse(history.slice(0, -1), currentInput);
+      const response = await getAiResponse(newMessages);
       const assistantMessage: Message = { role: 'assistant', content: response };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
        console.error(error);
-      // If the API call fails, remove the optimistic user message
-      setMessages((prev) => prev.slice(0, prev.length - 1));
+      // If the API call fails, revert to the previous state
+      setMessages(messages);
       setInput(currentInput); // Restore the input
       toast({
         variant: "destructive",
