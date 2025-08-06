@@ -377,16 +377,16 @@ export default function Home() {
                     <span className="truncate">{convo.title}</span>
                 </Button>
                 <div className="absolute right-1 top-1/2 -translate-y-1/2 h-8 flex items-center opacity-0 group-hover:opacity-100 bg-gradient-to-l from-card via-card to-transparent pl-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleArchiveConversation(convo.id, !convo.isArchived)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {e.stopPropagation(); handleArchiveConversation(convo.id, !convo.isArchived)}}>
                       {convo.isArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                   </Button>
                   <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                             <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent>
+                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
