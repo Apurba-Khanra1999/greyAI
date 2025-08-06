@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Plus, Bot, User, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle, Sparkles, FileText } from 'lucide-react';
+import { Send, Plus, Bot, User, PanelLeft, MessageSquare, Trash2, Pencil, Check, X, Paperclip, XCircle, Sparkles, FileText, Archive, ArchiveRestore } from 'lucide-react';
 import { getAiResponse } from './actions';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
+import { Separator } from '@/components/ui/separator';
 
 const GreyAiIcon = () => (
   <svg
@@ -64,6 +65,7 @@ type Conversation = {
   id: string;
   title: string;
   messages: Message[];
+  isArchived?: boolean;
 }
 
 export default function Home() {
@@ -78,6 +80,7 @@ export default function Home() {
   const isMobile = useIsMobile();
   const [editingMessage, setEditingMessage] = useState<{ convoId: string; msgIndex: number; content: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Load conversations from localStorage on initial render
   useEffect(() => {
@@ -87,7 +90,12 @@ export default function Home() {
         const parsedConversations: Conversation[] = JSON.parse(savedConversations);
         if (Array.isArray(parsedConversations) && parsedConversations.length > 0) {
           setConversations(parsedConversations);
-          setActiveConversationId(parsedConversations[0].id);
+          const activeConvo = parsedConversations.find(c => !c.isArchived);
+          if (activeConvo) {
+            setActiveConversationId(activeConvo.id);
+          } else {
+            handleNewConversation();
+          }
         } else {
           handleNewConversation();
         }
@@ -138,6 +146,7 @@ export default function Home() {
       id: Date.now().toString(),
       title: 'New Chat',
       messages: [],
+      isArchived: false,
     };
     setConversations(prev => {
         const newConversations = [newConversation, ...prev];
@@ -162,8 +171,10 @@ export default function Home() {
     setConversations(prev => {
       const newConversations = prev.filter(c => c.id !== id);
       if (activeConversationId === id) {
-        if (newConversations.length > 0) {
-             setActiveConversationId(newConversations[0].id);
+        // Find the next available non-archived conversation to select
+        const nextActive = newConversations.find(c => !c.isArchived) || newConversations.find(c => c.isArchived);
+        if (nextActive) {
+             setActiveConversationId(nextActive.id);
         } else {
              // This will call handleNewConversation and set a new activeId
              setActiveConversationId(null);
@@ -172,6 +183,22 @@ export default function Home() {
       return newConversations;
     });
   }
+
+  const handleArchiveConversation = (id: string, archive: boolean) => {
+    setConversations(prev => {
+      const newConversations = prev.map(c => c.id === id ? { ...c, isArchived: archive } : c);
+      // If we are archiving the currently active conversation, we need to select a new one.
+      if (activeConversationId === id && archive) {
+        const nextActive = newConversations.find(c => !c.isArchived);
+        if (nextActive) {
+          setActiveConversationId(nextActive.id);
+        } else {
+          setActiveConversationId(null); // Or the first archived one
+        }
+      }
+      return newConversations;
+    });
+  };
 
   // Effect to create a new conversation if all are deleted
   useEffect(() => {
@@ -320,6 +347,9 @@ export default function Home() {
 
   const isImage = (fileType: string) => fileType.startsWith('image/');
 
+  const activeConvos = conversations.filter(c => !c.isArchived);
+  const archivedConvos = conversations.filter(c => c.isArchived);
+
   const SidebarContent = () => (
      <div className="flex flex-col h-full bg-card border-r overflow-hidden">
         <div className="flex items-center justify-between gap-2 p-4 border-b shrink-0">
@@ -335,40 +365,92 @@ export default function Home() {
             </Button>
         </div>
         <ScrollArea className="flex-1">
-           <div className="p-2 space-y-1">
-             {conversations.map(convo => (
-               <div key={convo.id} className="group relative">
+          <div className="p-2 space-y-1">
+            {!showArchived && activeConvos.map(convo => (
+              <div key={convo.id} className="group relative">
                 <Button
                     variant={activeConversationId === convo.id ? 'secondary' : 'ghost'}
-                    className="w-full justify-start text-base pl-3 pr-10 truncate"
+                    className="w-full justify-start text-base pl-3 pr-20 truncate"
                     onClick={() => handleSelectConversation(convo.id)}
                 >
                     <MessageSquare className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="truncate">{convo.title}</span>
                 </Button>
-                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100">
-                          <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete this conversation.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteConversation(convo.id)}>Delete</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 h-8 flex items-center opacity-0 group-hover:opacity-100">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleArchiveConversation(convo.id, true)}>
+                      <Archive className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete this conversation.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteConversation(convo.id)}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+              </div>
+            ))}
+             {showArchived && archivedConvos.map(convo => (
+               <div key={convo.id} className="group relative">
+                <Button
+                    variant={activeConversationId === convo.id ? 'secondary' : 'ghost'}
+                    className="w-full justify-start text-base pl-3 pr-20 truncate"
+                    onClick={() => handleSelectConversation(convo.id)}
+                >
+                    <MessageSquare className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="truncate">{convo.title}</span>
+                </Button>
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 h-8 flex items-center opacity-0 group-hover:opacity-100">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleArchiveConversation(convo.id, false)}>
+                      <ArchiveRestore className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete this conversation.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteConversation(convo.id)}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                </div>
              ))}
-           </div>
+          </div>
         </ScrollArea>
+        {archivedConvos.length > 0 && (
+          <>
+            <Separator />
+            <div className="p-2">
+              <Button variant="ghost" className="w-full justify-start text-base" onClick={() => setShowArchived(!showArchived)}>
+                {showArchived ? <MessageSquare className="mr-2 h-5 w-5" /> : <Archive className="mr-2 h-5 w-5" />}
+                {showArchived ? 'Active Chats' : `Archived (${archivedConvos.length})`}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
   );
 
@@ -563,5 +645,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
