@@ -93,6 +93,10 @@ export default function Home() {
           const activeConvo = parsedConversations.find(c => !c.isArchived);
           if (activeConvo) {
             setActiveConversationId(activeConvo.id);
+          } else if (parsedConversations.some(c => c.isArchived)) {
+            // If all are archived, show archived list by default
+            setShowArchived(true);
+            setActiveConversationId(parsedConversations.find(c => c.isArchived)!.id);
           } else {
             handleNewConversation();
           }
@@ -113,12 +117,9 @@ export default function Home() {
     if (conversations.length > 0) {
       localStorage.setItem('conversations', JSON.stringify(conversations));
     } else {
-      // If there are no conversations, we shouldn't have an active one.
-      if (activeConversationId !== null) {
-        localStorage.removeItem('conversations');
-      }
+      localStorage.removeItem('conversations');
     }
-  }, [conversations, activeConversationId]);
+  }, [conversations]);
 
 
   useEffect(() => {
@@ -137,7 +138,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // A slight delay to allow the new message to be rendered before scrolling
     setTimeout(scrollToBottom, 100);
   }, [messages, isLoading]);
 
@@ -148,11 +148,9 @@ export default function Home() {
       messages: [],
       isArchived: false,
     };
-    setConversations(prev => {
-        const newConversations = [newConversation, ...prev];
-        return newConversations;
-    });
+    setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
+    setShowArchived(false);
     setInput('');
     setFile(null);
     if (isMobile) {
@@ -171,12 +169,10 @@ export default function Home() {
     setConversations(prev => {
       const newConversations = prev.filter(c => c.id !== id);
       if (activeConversationId === id) {
-        // Find the next available non-archived conversation to select
-        const nextActive = newConversations.find(c => !c.isArchived) || newConversations.find(c => c.isArchived);
-        if (nextActive) {
-             setActiveConversationId(nextActive.id);
+        const nextConvo = newConversations.find(c => c.isArchived === showArchived) || newConversations.find(c => c.isArchived !== showArchived);
+        if (nextConvo) {
+             setActiveConversationId(nextConvo.id);
         } else {
-             // This will call handleNewConversation and set a new activeId
              setActiveConversationId(null);
         }
       }
@@ -187,25 +183,36 @@ export default function Home() {
   const handleArchiveConversation = (id: string, archive: boolean) => {
     setConversations(prev => {
       const newConversations = prev.map(c => c.id === id ? { ...c, isArchived: archive } : c);
-      // If we are archiving the currently active conversation, we need to select a new one.
       if (activeConversationId === id && archive) {
         const nextActive = newConversations.find(c => !c.isArchived);
         if (nextActive) {
           setActiveConversationId(nextActive.id);
         } else {
-          setActiveConversationId(null); // Or the first archived one
+          setActiveConversationId(null); 
+          setShowArchived(true); // Switch to archived view if no active chats left
         }
+      } else if (!archive) {
+        // When unarchiving, ensure we switch back to the active view
+        setShowArchived(false);
       }
       return newConversations;
     });
   };
 
-  // Effect to create a new conversation if all are deleted
   useEffect(() => {
-    if (conversations.length === 0 && activeConversationId === null) {
-      handleNewConversation();
+    if (activeConversationId === null && conversations.length > 0) {
+      const nextConvo = conversations.find(c => c.isArchived === showArchived) || conversations.find(c => c.isArchived !== showArchived);
+      if (nextConvo) {
+        setActiveConversationId(nextConvo.id);
+        setShowArchived(!!nextConvo.isArchived);
+      } else {
+         handleNewConversation();
+      }
+    } else if (conversations.length === 0) {
+        handleNewConversation();
     }
-  }, [conversations, activeConversationId]);
+  }, [activeConversationId, conversations, showArchived]);
+
 
   const handleEditSubmit = async (convoId: string, msgIndex: number, newContent: string) => {
     if (!newContent.trim()) return;
@@ -215,17 +222,12 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-        // Find the conversation and update the message
         const targetConvo = conversations.find(c => c.id === convoId);
         if (!targetConvo) throw new Error("Conversation not found");
         
-        // When editing, we can't re-submit a file. We only re-submit text.
-        const updatedMessages = [...targetConvo.messages];
-        // Truncate the conversation history at the point of the edited message
-        const historyToResubmit = updatedMessages.slice(0, msgIndex);
+        const historyToResubmit = targetConvo.messages.slice(0, msgIndex);
         historyToResubmit.push({ role: 'user', content: newContent, fileUrl: null, fileName: null });
 
-        // Optimistically update the UI
         setConversations(prev =>
             prev.map(c =>
                 c.id === convoId
@@ -237,7 +239,6 @@ export default function Home() {
         const response = await getAiResponse(historyToResubmit);
         const assistantMessage: Message = { role: 'assistant', content: response };
 
-        // Update with the final response
         setConversations(prev =>
             prev.map(c =>
                 c.id === convoId
@@ -248,7 +249,7 @@ export default function Home() {
 
     } catch (error) {
         console.error(error);
-        setConversations(originalConversations); // Rollback on error
+        setConversations(originalConversations);
         toast({
             variant: "destructive",
             title: "An error occurred",
@@ -321,7 +322,7 @@ export default function Home() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (uploadedFile) {
-      if (uploadedFile.size > 4 * 1024 * 1024) { // 4MB limit
+      if (uploadedFile.size > 4 * 1024 * 1024) {
         toast({
           variant: "destructive",
           title: "File too large",
@@ -339,7 +340,6 @@ export default function Home() {
       };
       reader.readAsDataURL(uploadedFile);
     }
-    // Reset file input value to allow re-uploading the same file
     if(fileInputRef.current) {
         fileInputRef.current.value = '';
     }
@@ -366,7 +366,7 @@ export default function Home() {
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
-            {!showArchived && activeConvos.map(convo => (
+            {(showArchived ? archivedConvos : activeConvos).map(convo => (
               <div key={convo.id} className="group relative">
                 <Button
                     variant={activeConversationId === convo.id ? 'secondary' : 'ghost'}
@@ -376,9 +376,9 @@ export default function Home() {
                     <MessageSquare className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="truncate">{convo.title}</span>
                 </Button>
-                <div className="absolute right-1 top-1/2 -translate-y-1/2 h-8 flex items-center opacity-0 group-hover:opacity-100">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleArchiveConversation(convo.id, true)}>
-                      <Archive className="h-4 w-4" />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 h-8 flex items-center opacity-0 group-hover:opacity-100 bg-gradient-to-l from-card via-card to-transparent pl-2">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleArchiveConversation(convo.id, !convo.isArchived)}>
+                      {convo.isArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                   </Button>
                   <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -402,51 +402,15 @@ export default function Home() {
                   </div>
               </div>
             ))}
-             {showArchived && archivedConvos.map(convo => (
-               <div key={convo.id} className="group relative">
-                <Button
-                    variant={activeConversationId === convo.id ? 'secondary' : 'ghost'}
-                    className="w-full justify-start text-base pl-3 pr-20 truncate"
-                    onClick={() => handleSelectConversation(convo.id)}
-                >
-                    <MessageSquare className="mr-3 h-5 w-5 flex-shrink-0" />
-                    <span className="truncate">{convo.title}</span>
-                </Button>
-                <div className="absolute right-1 top-1/2 -translate-y-1/2 h-8 flex items-center opacity-0 group-hover:opacity-100">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleArchiveConversation(convo.id, false)}>
-                      <ArchiveRestore className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete this conversation.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteConversation(convo.id)}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-               </div>
-             ))}
           </div>
         </ScrollArea>
-        {archivedConvos.length > 0 && (
+        {conversations.some(c => c.isArchived) && (
           <>
             <Separator />
             <div className="p-2">
               <Button variant="ghost" className="w-full justify-start text-base" onClick={() => setShowArchived(!showArchived)}>
                 {showArchived ? <MessageSquare className="mr-2 h-5 w-5" /> : <Archive className="mr-2 h-5 w-5" />}
-                {showArchived ? 'Active Chats' : `Archived (${archivedConvos.length})`}
+                {showArchived ? 'Back to Active Chats' : `View Archived (${archivedConvos.length})`}
               </Button>
             </div>
           </>
